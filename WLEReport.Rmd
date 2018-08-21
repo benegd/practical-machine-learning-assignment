@@ -1,0 +1,173 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Benjamin Estrade"
+date: "21 August 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Executive Summary
+
+
+#Introduction
+
+This project will be analyzing data from accelerometers on the waist, bicept, 
+wrist and dumbell. 
+
+This data was collected during a set of 10 Unilateral Dumbbell Biceps Curl by 6 
+different participants.
+
+The participants were asked to make different types of errors while completing 
+the set which are reflected by the different classes. Each class is as follows:
+
+* Class A - exactly according to the specification 
+
+* Class B - throwing the elbows to the front 
+
+* Class C - lifting the dumbbell only halfway 
+
+* Class D - lowering the dumbbell only halfway 
+
+* Class E - throwing the hips to the front 
+
+All measurements y is up and down, x is right and left and z is forward and 
+backward
+
+#Aim of report
+
+To try and build a predictive model based on this data that will accuractely 
+predict the way in which the exercise is conducted. 
+
+
+#Assumptions and Concerns
+
+I believe this assignment is seriously flawed in that rather than look at 
+placing a set of data for an exercise into a class we are looking at placing 
+single points in time. 
+
+Assumptions:
+
+* The date time data shouldn't be used in the prediction model as well as the 
+variable x and num window
+
+* The user name can be used as part of the prediction model
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Analysis
+
+##Retriving and importing the data
+
+```{r}
+#recording time the data was downloaded for reproducablity
+Sys.time()
+
+training.url <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+
+testing.url <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!dir.exists("datafiles")){
+        dir.create("datafiles")
+}
+
+if(!dir.exists("datafiles/training.csv")){
+        download.file(training.url, "datafiles/training.csv")
+}
+
+if(!dir.exists("datafiles/testing.csv")){
+        download.file(testing.url, "datafiles/testing.csv")
+}
+
+training <- read.csv("datafiles/training.csv")
+testing <- read.csv("datafiles/testing.csv")
+```
+
+##Exploritory Analysis
+
+Looking at the data.
+
+More information about the dataset can be found here:
+
+http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+```{r}
+dim(training)
+str(training)
+```
+
+The summary data seems to be available when new window = yes. Otherwise it is 
+empty.
+
+Look at which fields of the testing data are all NA. If this is the case we 
+can't use these fields and they will be removed.
+
+```{r}
+testing.not.empty <- apply(testing, 2, function(x) length(x) != sum(is.na(x)))
+testing.not.empty[1:20]
+```
+
+Removing the empty fields and data which can't be used for predicitions from the 
+data sets
+
+```{r}
+testing <- testing[,testing.not.empty]
+training <- training[,testing.not.empty]
+vars.not.for.prediction = c(1,3,4,5,6,7)
+testing <- testing[,-vars.not.for.prediction]
+training <- training[,-vars.not.for.prediction]
+```
+
+Splitting testing set into a testing and validation set
+
+```{r, warning=FALSE}
+library(caret)
+
+set.seed(2051)
+inTrain <- createDataPartition(y=training$classe, p=0.7, list = FALSE)
+training.nv <- training[inTrain,]
+validation <- training[-inTrain,]
+training <- training.nv
+rm(training.nv)
+```
+
+Reviewing a variety of models using 10 fold cross validation. Only models with an accuracy above 70% will be used in the combined model. 
+
+```{r, cache = TRUE}
+#setting the validation method I will be using during these trails
+train.control <- trainControl(method = "cv", number = 10)
+#setting the seed
+set.seed(1564)
+#lda model
+lda.model <- train(classe ~ ., data = training, method = "lda", trControl = train.control)
+#lda with pca preprocessing
+pca.model <- train(classe ~ ., data = training, method = "lda", preProcess = "pca", trControl = train.control)
+#qda model
+qda <- train(classe ~ ., data = training, method = "qda", trControl = train.control)
+#boosting using trees
+gbm.model <- train(classe ~ ., data = training, method = "gbm", trControl = train.control)
+#random forest model
+rf.model <- train(classe ~ ., data = training, method = "rf", trControl = train.control)
+```
+
+
+
