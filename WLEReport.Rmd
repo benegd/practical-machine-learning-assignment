@@ -2,7 +2,11 @@
 title: "Practical Machine Learning Assignment"
 author: "Benjamin Estrade"
 date: "21 August 2018"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
+    theme: spacelab
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -11,6 +15,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #Executive Summary
 
+The goal of this project was to accurately predict a lack of form in a number of ways while preforming an exercise. 
+
+The best preforming model was a random forest which preformed with an accuracy of 99%.
+
+10-fold cross validation was used to create the model. 
+
+Correct predictions in final testing data was 20 out of 20, 100%.
+
+Originally, a cobination of models was planned to be used but given the effectiveness of the single model this was not required. 
 
 #Introduction
 
@@ -44,10 +57,6 @@ predict the way in which the exercise is conducted.
 
 #Assumptions and Concerns
 
-I believe this assignment is seriously flawed in that rather than look at 
-placing a set of data for an exercise into a class we are looking at placing 
-single points in time. 
-
 Assumptions:
 
 * The date time data shouldn't be used in the prediction model as well as the 
@@ -55,28 +64,11 @@ variable x and num window
 
 * The user name can be used as part of the prediction model
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #Analysis
 
 ##Retriving and importing the data
 
-```{r}
+```{r, warning = FALSE}
 #recording time the data was downloaded for reproducablity
 Sys.time()
 
@@ -118,8 +110,8 @@ str(training)
 The summary data seems to be available when new window = yes. Otherwise it is 
 empty.
 
-Look at which fields of the testing data are all NA. If this is the case we 
-can't use these fields and they will be removed.
+Looking at which fields of the testing data are all NA. If this is the case we 
+can't use these fields for prediction and they will be removed.
 
 ```{r}
 testing.not.empty <- apply(testing, 2, function(x) length(x) != sum(is.na(x)))
@@ -139,7 +131,7 @@ training <- training[,-vars.not.for.prediction]
 
 Splitting testing set into a testing and validation set
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 library(caret)
 
 set.seed(2051)
@@ -152,7 +144,7 @@ rm(training.nv)
 
 Reviewing a variety of models using 10 fold cross validation. Only models with an accuracy above 70% will be used in the combined model. 
 
-```{r, cache = TRUE}
+```{r, cache = TRUE, results = "hide"}
 #setting the validation method I will be using during these trails
 train.control <- trainControl(method = "cv", number = 10)
 #setting the seed
@@ -162,12 +154,39 @@ lda.model <- train(classe ~ ., data = training, method = "lda", trControl = trai
 #lda with pca preprocessing
 pca.model <- train(classe ~ ., data = training, method = "lda", preProcess = "pca", trControl = train.control)
 #qda model
-qda <- train(classe ~ ., data = training, method = "qda", trControl = train.control)
+qda.model <- train(classe ~ ., data = training, method = "qda", trControl = train.control)
 #boosting using trees
 gbm.model <- train(classe ~ ., data = training, method = "gbm", trControl = train.control)
 #random forest model
 rf.model <- train(classe ~ ., data = training, method = "rf", trControl = train.control)
 ```
 
+Looking at the effectiveness of the models on the validation data set
 
+```{r}
+lda.pred <- predict(lda.model, validation)
+pca.pred <- predict(pca.model, validation)
+qda.pred <- predict(qda.model, validation)
+gbm.pred <- predict(gbm.model, validation)
+rf.pred <- predict(rf.model, validation)
+lda.ac <- confusionMatrix(validation$classe, lda.pred)$overall[1]
+pca.ac <- confusionMatrix(validation$classe, pca.pred)$overall[1]
+qda.ac <- confusionMatrix(validation$classe, qda.pred)$overall[1]
+gbm.ac <- confusionMatrix(validation$classe, gbm.pred)$overall[1]
+rf.ac <- confusionMatrix(validation$classe, rf.pred)$overall[1]
+data.frame(lda = lda.ac, pca = pca.ac, qda = qda.ac, gbm = gbm.ac, rf = rf.ac)
+```
 
+#Conclusion
+
+The random forest model is the best preforming on real data and at over 99% no combinition is required. Accurcacy of model on the validation set is as follows.
+
+```{r}
+confusionMatrix(validation$classe, rf.pred)
+```
+
+The predictions for the 20 testing points are as follows:
+
+```{r}
+predict(rf.model, testing)
+```
